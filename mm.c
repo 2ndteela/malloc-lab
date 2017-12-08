@@ -24,7 +24,7 @@
  ********************************************************/
 team_t team = {
     /* Team name */
-    "",
+    "Os caras",
     /* First member's full name */
     "Jeremy Teela",
     /* First member's email address */
@@ -34,6 +34,18 @@ team_t team = {
     /* Second member's email address (leave blank if none) */
     "kolbytn@gmail.com"
 };
+
+typedef long unsigned int mem_addr;
+
+typedef struct {
+    mem_addr next;
+    mem_addr prev;
+    mem_addr start;
+    unsigned int size; 
+    int alloc;
+} block_hdr;
+
+mem_addr heapTop = 0;
 
 /* single word (4) or double word (8) alignment */
 #define ALIGNMENT 8
@@ -49,6 +61,12 @@ team_t team = {
  */
 int mm_init(void)
 {
+    block_hdr first;
+    first.alloc = 0;
+    first.next = NULL;
+    first.prev = NULL;
+    first.start = 0;
+    first.size = 500;
     return 0;
 }
 
@@ -73,6 +91,7 @@ void *mm_malloc(size_t size)
  */
 void mm_free(void *ptr)
 {
+
 }
 
 /*
