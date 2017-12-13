@@ -24,18 +24,14 @@ team_t team = {
     /* First member's email address */
     "2ndteela@gmail.com",
     /* Second member's full name (leave blank if none) */
-    "Kolberto Knottingham",
+    "Kolby Nottingham",
     /* Second member's email address (leave blank if none) */
     "kolbytn@gmail.com"
 };
 
-typedef long unsigned int mem_addr;
-
 typedef struct {
-    unsigned short this_size;
-    unsigned short this_alloc;
-    unsigned short prev_size;
-    unsigned short prev_alloc;
+    unsigned int size;
+    unsigned int alloc;
 } block_hdr;
 
 /* single word (4) or double word (8) alignment */
@@ -52,19 +48,16 @@ typedef struct {
  * mm_init - initialize the malloc package.
  */
 int mm_init(void) {
-  block_hdr* first = mem_heap_lo();
-  first->this_size = 2 << 10;
-  first->this_alloc = 0;
-  first->prev_size = 0;
-  first->prev_alloc = 1;
-
-  block_hdr* end = mem_heap_lo();
-  end->this_size = 0;
-  end->this_alloc = 1;
-  end->prev_size = 2 << 10;
-  end->prev_alloc = 0;
-
   mem_sbrk((2 << 10) + (HEADER_SIZE * 2));
+
+  block_hdr* first = mem_heap_lo();
+  first->size = (2 << 10) + HEADER_SIZE;
+  first->alloc = 0;
+
+  block_hdr* end = first + (first->size / 8);
+  end->size = 0;
+  end->alloc = 1;
+
   return 0;
 }
 
@@ -73,28 +66,26 @@ int mm_init(void) {
  * Note: I havn't tested this yet and I'm not familiar enough w/ C to know if it will run
  */
 void *mm_malloc(size_t size) {
-  size = ALIGN(size + SIZE_T_SIZE)
+  size = ALIGN(size);
   block_hdr* curr = mem_heap_lo();
 
-  while (curr->this_size > 0) {
-    if(curr->this_size > size && curr->this_alloc == 0) {
+  while (curr->size > 0) {
+    if(curr->size > size && curr->alloc == 0) {
       break;
     }
-    curr += curr->this_size;
+    curr += curr->size / 8;
   }
 
-  if(curr->this_size == 0) {
+  if(curr->size == 0) {
     mem_sbrk(size + HEADER_SIZE);
-    curr += size + HEADER_SIZE;
-    curr->this_size = 0;
-    curr->this_alloc = 1;
-    curr->prev_size = size + HEADER_SIZE;
-    curr->prev_alloc = 1;
-    curr -= size + HEADER_SIZE;
+    curr += (size + HEADER_SIZE) / 8;
+    curr->size = 0;
+    curr->alloc = 1;
+    curr -= (size + HEADER_SIZE) / 8;
+    curr->size = size + HEADER_SIZE;
   }
-  curr->this_size = size + HEADER_SIZE;
-  curr->this_alloc = 1;
-  return curr;
+  curr->alloc = 1;
+  return curr + 1;
 }
 
 /*
@@ -105,9 +96,7 @@ void *mm_malloc(size_t size) {
 void mm_free(void *ptr)
 {
    block_hdr* curr = ptr;
-   curr->this_alloc = 0;
-   curr += curr->size;
-   curr->prev_alloc = 0;
+   curr->alloc = 0;
 }
 
 /*
