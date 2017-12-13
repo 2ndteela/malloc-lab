@@ -32,11 +32,11 @@ team_t team = {
 typedef long unsigned int mem_addr;
 
 typedef struct {
-    unsigned int this_size;
-    unsigned int prev_size;
+    unsigned short this_size;
+    unsigned short this_alloc;
+    unsigned short prev_size;
+    unsigned short prev_alloc;
 } block_hdr;
-
-mem_addr firstAvailable;
 
 /* single word (4) or double word (8) alignment */
 #define ALIGNMENT 8
@@ -51,82 +51,51 @@ mem_addr firstAvailable;
 /*
  * mm_init - initialize the malloc package.
  */
-int mm_init(void)
-{
-    const int STARTING_SIZE = 2 << 10;
-    mem_init();
-    mem_sbrk(STARTING_SIZE);
-    block_hdr* first = mem_heap_lo();
-    first -> this_size = mem_heapsize(); 
-    first -> prev_size = NULL;
-    
-    block_hdr* next_block = first + 1;
-    block_hdr* last_block = next_block + 1;
+int mm_init(void) {
+  block_hdr* first = mem_heap_lo();
+  first->this_size = 2 << 10;
+  first->this_alloc = 0;
+  first->prev_size = 0;
+  first->prev_alloc = 1;
 
-   *next_block = NULL;
-   *last_block = NULL; 
+  block_hdr* end = mem_heap_lo();
+  end->this_size = 0;
+  end->this_alloc = 1;
+  end->prev_size = 2 << 10;
+  end->prev_alloc = 0;
 
-   firstAvailable = mem_heap_lo();
-
-    printf("\n*****Memory Initialized*****\n");
-    return 0;
+  mem_sbrk((2 << 10) + (HEADER_SIZE * 2));
+  return 0;
 }
 
 /*
  * mm_malloc - Look for best fit block, adn allocate more memory if does not exist
  * Note: I havn't tested this yet and I'm not familiar enough w/ C to know if it will run
  */
-void *mm_malloc(size_t size)
-{
-  if(firstAvailable == NULL) {
-    printf("NOTHING OPEN!\n");
-    return NULL;
-  }
-  block_hdr* current;
-  current = firstAvailable;
-  mem_addr* test = current + 1;
-  int spaceFound = 0;
-  block_hdr* bestFit = current;
-  
-  printf("searching for %d | ", size);
-  do {
-    printf("current size is: %d\n", current->this_size);
-    if(current -> this_size > size) {
-      printf("match found!\n");
-      spaceFound = 1;
-      bestFit = current;
-    }
-      current = *test;
-  }
-  while (*test != NULL && !spaceFound);
+void *mm_malloc(size_t size) {
+  size = ALIGN(size + SIZE_T_SIZE)
+  block_hdr* curr = mem_heap_lo();
 
-  if(*(bestFit + 2) == NULL && *(bestFit + 1) == NULL) {
-    firstAvailable = NULL;
-  }
-  else if (*(bestFit + 2) != NULL) {
-    block_hdr* temp = bestFit + 2;
-    while(temp + 2 != NULL) {
-      temp = *temp + 2;
+  while (curr->this_size > 0) {
+    if(curr->this_size > size && curr->this_alloc == 0) {
+      break;
     }
-    firstAvailable = temp;
+    curr += curr->this_size;
   }
-  else {
-    firstAvailable = bestFit;
+
+  if(curr->this_size == 0) {
+    mem_sbrk(size + HEADER_SIZE);
+    curr += size + HEADER_SIZE;
+    curr->this_size = 0;
+    curr->this_alloc = 1;
+    curr->prev_size = size + HEADER_SIZE;
+    curr->prev_alloc = 1;
+    curr -= size + HEADER_SIZE;
   }
-  bestFit -> this_size += 1;
-  printf("best fit = %.x8\n", bestFit);
-  return bestFit;
+  curr->this_size = size + HEADER_SIZE;
+  curr->this_alloc = 1;
+  return curr;
 }
-
-  /*
-  int newsize = ALIGN(size + SIZE_T_SIZE);
-  void *p = mem_sbrk(newsize);
-  if (p == (void *)-1)
-return NULL;
-  else {
-      *(size_t *)p = size;
-      return (void *)((char *)p + SIZE_T_SIZE);
-  }*/
 
 /*
  * Checks whether the next and previous blocks are free and combines them by
@@ -135,15 +104,10 @@ return NULL;
  */
 void mm_free(void *ptr)
 {
-  
-  // block_hdr* curr = ptr;
-  // if(!(curr + curr->size)->alloc)             //if next is free
-  //   curr->size += (curr + curr->size)->size;   //add next size to current size
-  // if(!curr->prevAlloc) {                     //if previous is free
-  //   curr -= curr->prevSize;                   //point at previous
-  //   curr->size += (curr + curr->size)->size;   //add next size to current size
-  // }
-  // curr->alloc = 0;                           //set current to free
+   block_hdr* curr = ptr;
+   curr->this_alloc = 0;
+   curr += curr->size;
+   curr->prev_alloc = 0;
 }
 
 /*
