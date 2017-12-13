@@ -60,7 +60,7 @@ int mm_init(void) {
 }
 
 /*
- * Allocates first fit or expands heap and returns pointer 
+ * Allocates first fit or expands heap and returns pointer
  */
 void *mm_malloc(size_t size) {
   size = ALIGN(size);
@@ -93,7 +93,7 @@ void *mm_malloc(size_t size) {
 }
 
 /*
- * Frees block and attempts to Coalesce with adjacent blocks 
+ * Frees block and attempts to Coalesce with adjacent blocks
  */
 void mm_free(void *ptr)
 {
@@ -101,7 +101,7 @@ void mm_free(void *ptr)
    if(curr->size % 2 == 1)
       curr->size -= 1;
    if((curr + (curr->size / 8))->size % 2 == 0) {
-      curr->size = curr->size + (curr + (curr->size / 8))->size; 
+      curr->size = curr->size + (curr + (curr->size / 8))->size;
    }
    if(curr->prev_size % 2 == 0) {
       (curr - (curr->prev_size / 8))->size += curr->size;
@@ -114,6 +114,9 @@ void mm_free(void *ptr)
  */
 void *mm_realloc(void *ptr, size_t size)
 {
+    block_hdr* newptr;
+    long stuff = 0;
+    int oldsize = 0;
     if(ptr == NULL && size > 0) {
         return mm_malloc(size);
     }
@@ -122,5 +125,11 @@ void *mm_realloc(void *ptr, size_t size)
         return;
     }
     mm_free(ptr);
-    return mm_malloc(size);
+    newptr = mm_malloc(size);
+    oldsize = (ptr - 8)->size;
+    for(int i = 0; i < (oldsize / 8); i++) {
+      stuff = *ptr + (i * 8);
+      *newptr + (i * 8) = stuff;
+    }
+    return newptr;
 }
