@@ -114,7 +114,9 @@ void mm_free(void *ptr)
  */
 void *mm_realloc(void *ptr, size_t size)
 {
-    block_hdr* newptr;
+    long* newptr;
+    long* oldptr = ptr;
+    block_hdr* old = ptr;
     long stuff = 0;
     int oldsize = 0;
     if(ptr == NULL && size > 0) {
@@ -126,10 +128,10 @@ void *mm_realloc(void *ptr, size_t size)
     }
     mm_free(ptr);
     newptr = mm_malloc(size);
-    oldsize = (ptr - 8)->size;
+    oldsize = (old - 1)->size;
     for(int i = 0; i < (oldsize / 8); i++) {
-      stuff = *ptr + (i * 8);
-      *newptr + (i * 8) = stuff;
+      stuff = *(oldptr + (i * 8));
+      *(newptr + (i * 8)) = stuff;
     }
     return newptr;
 }
