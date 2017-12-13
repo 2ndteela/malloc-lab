@@ -32,9 +32,8 @@ team_t team = {
 typedef long unsigned int mem_addr;
 
 typedef struct {
-    unsigned int next;
-    unsigned int prev;
-    unsigned int size;
+    unsigned int this_size;
+    unsigned int prev_size;
 } block_hdr;
 
 mem_addr heapTop = 0;
@@ -54,10 +53,17 @@ mem_addr heapTop = 0;
  */
 int mm_init(void)
 {
-    block_hdr first;
-    first.next = NULL
-    first.prev = NULL
-    first.size = 2 << 31
+    const int INITAIL_VAL = 2 << 10;
+    block_hdr* first;
+    first.this_size -> INITAIL_VAL;
+    first.prev_size -> NULL;
+    
+    mem_addr* next_block = first++;
+    mem_addr* last_block = next_block++;
+    next_block -> NULL;
+    last_block -> NULL; 
+
+    heapTop = INITAIL_VAL;
     return 0;
 }
 
