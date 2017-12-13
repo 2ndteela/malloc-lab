@@ -32,10 +32,9 @@ team_t team = {
 typedef long unsigned int mem_addr;
 
 typedef struct {
-    unsigned short prevSize;
-    unsigned short prevAlloc;
-    unsigned short size;
-    unsigned short alloc;
+    unsigned int next;
+    unsigned int prev;
+    unsigned int size;
 } block_hdr;
 
 mem_addr heapTop = 0;
@@ -56,15 +55,9 @@ mem_addr heapTop = 0;
 int mm_init(void)
 {
     block_hdr first;
-    block_hdr end;
-    first.prevSize = 0;
-    first.prevAlloc = 1;
-    first.size = 500;
-    first.alloc = 0;
-    end.prevSize = 500;
-    end.prevAlloc = 0;
-    end.size = 0;
-    end.alloc = 1;
+    first.next = NULL
+    first.prev = NULL
+    first.size = 2 << 31
     return 0;
 }
 
@@ -74,45 +67,7 @@ int mm_init(void)
  */
 void *mm_malloc(size_t size)
 {
-  block_hdr* prev = NULL;
-  block_hdr* curr = mem_heap_lo();
-  block_hdr* best = NULL;
-  unsigned short first = 0;
-
-  size = ALIGN(size);
-  while(curr->size != 0) {                         //Traverse entire heap
-    if(curr->size > size && curr->alloc == 0) {
-      if(first == 0) {                             //identify first fit
-        first = curr->size;
-        best = curr;
-      }
-      else if(curr->size < best->size)             //identify best fit
-        best = curr;
-    }
-    prev = curr;
-    curr += curr->size;
-  }
-
-  if(best != NULL) {
-    if(best->size - size >= 16){                    //if left over block is >= 16
-      prev = best;                                  //split block
-      curr = best + size + HEADER_SIZE;
-      curr->prevSize = prev->size;
-      curr->prevAlloc = 1;
-      curr->size = prev->size - size + HEADER_SIZE;
-      curr->alloc = 0;
-    }
-    curr = best;                                     //select best fit
-    prev = best - best->prevSize;
-  }
-  else                                               //if no best fit select end header
-    mem_sbrk(size + HEADER_SIZE);                    //and increase heap size
-
-  curr->prevSize = prev->size;                       //initialize new block
-  curr->prevAlloc = 1;
-  curr->size = size + HEADER_SIZE;
-  curr->alloc = 1;
-  return curr;
+  
 }
 
   /*
