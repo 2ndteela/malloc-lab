@@ -1,7 +1,5 @@
 /*
-*
- * NOTE TO STUDENTS: Replace this header comment with your own header
- * comment that gives a high level description of your solution.
+ * This malloc function uses immediate coalescing and first fit to free and allocate memory
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,7 +29,7 @@ team_t team = {
 
 typedef struct {
     unsigned int size;
-    unsigned int alloc;
+    unsigned int prev_size;
 } block_hdr;
 
 /* single word (4) or double word (8) alignment */
@@ -52,69 +50,77 @@ int mm_init(void) {
 
   block_hdr* first = mem_heap_lo();
   first->size = (2 << 10) + HEADER_SIZE;
-  first->alloc = 0;
+  first->prev_size = 1;
 
   block_hdr* end = first + (first->size / 8);
-  end->size = 0;
-  end->alloc = 1;
+  end->size = 1;
+  end->prev_size = first->size;
 
   return 0;
 }
 
 /*
- * mm_malloc - Look for best fit block, adn allocate more memory if does not exist
- * Note: I havn't tested this yet and I'm not familiar enough w/ C to know if it will run
+ * Allocates first fit or expands heap and returns pointer 
  */
 void *mm_malloc(size_t size) {
   size = ALIGN(size);
   block_hdr* curr = mem_heap_lo();
+  block_hdr* prev;
 
-  while (curr->size > 0) {
-    if(curr->size > size && curr->alloc == 0) {
+  while (curr->size > 1) {
+    if(curr->size > size && curr->size % 2 == 0) {
       break;
     }
+    prev = curr;
     curr += curr->size / 8;
   }
 
-  if(curr->size == 0) {
+  if(curr->size == 1) {
     mem_sbrk(size + HEADER_SIZE);
-    curr += (size + HEADER_SIZE) / 8;
-    curr->size = 0;
-    curr->alloc = 1;
-    curr -= (size + HEADER_SIZE) / 8;
-    curr->size = size + HEADER_SIZE;
+    curr->size = size + HEADER_SIZE + 1;
+    prev = curr;
+    curr += curr->size / 8;
+    curr->size = 1;
+    curr->prev_size = prev->size;
   }
-  curr->alloc = 1;
-  return curr + 1;
+  else {
+    curr->size += 1;
+    prev = curr;
+    curr += curr->size / 8;
+    curr->prev_size = prev->size;
+  }
+  return prev + 1;
 }
 
 /*
- * Checks whether the next and previous blocks are free and combines them by
- * adjusting the size of the blocks. Then sets the alloc byte
- *  Note: I havn't tested this yet and I'm not familiar enough w/ C to know if it will run
+ * Frees block and attempts to Coalesce with adjacent blocks 
  */
 void mm_free(void *ptr)
 {
-   block_hdr* curr = ptr;
-   curr->alloc = 0;
+   block_hdr* curr = ptr - 8;
+   if(curr->size % 2 == 1)
+      curr->size -= 1;
+   if((curr + (curr->size / 8))->size % 2 == 0) {
+      curr->size = curr->size + (curr + (curr->size / 8))->size; 
+   }
+   if(curr->prev_size % 2 == 0) {
+      (curr - (curr->prev_size / 8))->size += curr->size;
+   }
+   (curr + (curr->size / 8))->prev_size = curr->size;
 }
 
 /*
- * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
+ * Implemented using mm_malloc and mm_free
  */
 void *mm_realloc(void *ptr, size_t size)
 {
-    void *oldptr = ptr;
-    void *newptr;
-    size_t copySize;
-
-    newptr = mm_malloc(size);
-    if (newptr == NULL)
-      return NULL;
-    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
-    if (size < copySize)
-      copySize = size;
-    memcpy(newptr, oldptr, copySize);
-    mm_free(oldptr);
-    return newptr;
+    if(ptr == NULL && size > 0) {
+        return mm_malloc(size);
+    }
+    if(ptr != NULL && size == 0) {
+        mm_free(ptr);
+        return;
+    }
+    mm_free(ptr);
+    return mm_malloc(size);
 }
