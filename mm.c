@@ -36,7 +36,7 @@ typedef struct {
     unsigned int prev_size;
 } block_hdr;
 
-mem_addr heapTop = 0;
+mem_addr firstAvailable;
 
 /* single word (4) or double word (8) alignment */
 #define ALIGNMENT 8
@@ -53,17 +53,22 @@ mem_addr heapTop = 0;
  */
 int mm_init(void)
 {
-    const int INITAIL_VAL = 2 << 10;
-    block_hdr* first;
-    first.this_size -> INITAIL_VAL;
-    first.prev_size -> NULL;
+    const int STARTING_SIZE = 2 << 10;
+    mem_init();
+    mem_sbrk(STARTING_SIZE);
+    block_hdr* first = mem_heap_lo();
+    first -> this_size = mem_heapsize(); 
+    first -> prev_size = NULL;
     
-    mem_addr* next_block = first++;
-    mem_addr* last_block = next_block++;
-    next_block -> NULL;
-    last_block -> NULL; 
+    block_hdr* next_block = first + 1;
+    block_hdr* last_block = next_block + 1;
 
-    heapTop = INITAIL_VAL;
+   *next_block = NULL;
+   *last_block = NULL; 
+
+   firstAvailable = mem_heap_lo();
+
+    printf("\n*****Memory Initialized*****\n");
     return 0;
 }
 
@@ -73,7 +78,44 @@ int mm_init(void)
  */
 void *mm_malloc(size_t size)
 {
+  if(firstAvailable == NULL) {
+    printf("NOTHING OPEN!\n");
+    return NULL;
+  }
+  block_hdr* current;
+  current = firstAvailable;
+  mem_addr* test = current + 1;
+  int spaceFound = 0;
+  block_hdr* bestFit = current;
   
+  printf("searching for %d | ", size);
+  do {
+    printf("current size is: %d\n", current->this_size);
+    if(current -> this_size > size) {
+      printf("match found!\n");
+      spaceFound = 1;
+      bestFit = current;
+    }
+      current = *test;
+  }
+  while (*test != NULL && !spaceFound);
+
+  if(*(bestFit + 2) == NULL && *(bestFit + 1) == NULL) {
+    firstAvailable = NULL;
+  }
+  else if (*(bestFit + 2) != NULL) {
+    block_hdr* temp = bestFit + 2;
+    while(temp + 2 != NULL) {
+      temp = *temp + 2;
+    }
+    firstAvailable = temp;
+  }
+  else {
+    firstAvailable = bestFit;
+  }
+  bestFit -> this_size += 1;
+  printf("best fit = %.x8\n", bestFit);
+  return bestFit;
 }
 
   /*
@@ -93,14 +135,15 @@ return NULL;
  */
 void mm_free(void *ptr)
 {
-  block_hdr* curr = ptr;
-  if(!(curr + curr->size)->alloc)             //if next is free
-    curr->size += (curr + curr->size)->size;   //add next size to current size
-  if(!curr->prevAlloc) {                     //if previous is free
-    curr -= curr->prevSize;                   //point at previous
-    curr->size += (curr + curr->size)->size;   //add next size to current size
-  }
-  curr->alloc = 0;                           //set current to free
+  
+  // block_hdr* curr = ptr;
+  // if(!(curr + curr->size)->alloc)             //if next is free
+  //   curr->size += (curr + curr->size)->size;   //add next size to current size
+  // if(!curr->prevAlloc) {                     //if previous is free
+  //   curr -= curr->prevSize;                   //point at previous
+  //   curr->size += (curr + curr->size)->size;   //add next size to current size
+  // }
+  // curr->alloc = 0;                           //set current to free
 }
 
 /*
