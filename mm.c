@@ -42,6 +42,13 @@ typedef struct {
 
 #define HEADER_SIZE 8
 
+#define GET(p)       (*(unsigned int *)(p))            //line:vm:mm:get
+#define PUT(p, val)  (*(unsigned int *)(p) = (val))    //line:vm:mm:put
+
+/* Read the size and allocated fields from address p */
+#define GET_SIZE(p)  (GET(p) & ~0x7)                   //line:vm:mm:getsize
+#define GET_ALLOC(p) (GET(p) & 0x1)      
+
 /*
  * mm_init - initialize the malloc package.
  */
@@ -66,16 +73,22 @@ void *mm_malloc(size_t size) {
   size = ALIGN(size);
   block_hdr* curr = mem_heap_lo();
   block_hdr* prev;
+  block_hdr* bestFit = 0;
 
   while (curr->size > 1) {
     if(curr->size > size && curr->size % 2 == 0) {
-      break;
+      if(bestFit == 0) {
+	 bestFit = curr;
+	}
+      else if (bestFit -> size > curr -> size) {
+	 bestFit = curr;
+	}
     }
     prev = curr;
     curr += curr->size / 8;
   }
 
-  if(curr->size == 1) {
+  if(bestFit == 0) {
     mem_sbrk(size + HEADER_SIZE);
     curr->size = size + HEADER_SIZE + 1;
     prev = curr;
@@ -84,10 +97,10 @@ void *mm_malloc(size_t size) {
     curr->prev_size = prev->size;
   }
   else {
-    curr->size += 1;
-    prev = curr;
-    curr += curr->size / 8;
-    curr->prev_size = prev->size;
+    bestFit->size += 1;
+    prev = bestFit;
+    bestFit += bestFit->size / 8;
+    bestFit->prev_size = prev->size;
   }
   return prev + 1;
 }
@@ -114,24 +127,25 @@ void mm_free(void *ptr)
  */
 void *mm_realloc(void *ptr, size_t size)
 {
-    long* newptr;
-    long* oldptr = ptr;
-    block_hdr* old = ptr;
-    long stuff = 0;
-    int oldsize = 0;
-    if(ptr == NULL && size > 0) {
-        return mm_malloc(size);
+
+    size_t oldSize;
+    void *newptr;
+
+    if(size == 0) {
+      mm_free(ptr);
+      return 0;
+    } 
+
+    if(ptr == NULL) {
+      return mm_malloc(size);
     }
-    if(ptr != NULL && size == 0) {
-        mm_free(ptr);
-        return;
-    }
-    mm_free(ptr);
+
     newptr = mm_malloc(size);
-    oldsize = (old - 1)->size;
-    for(int i = 0; i < (oldsize / 8); i++) {
-      stuff = *(oldptr + (i * 8));
-      *(newptr + (i * 8)) = stuff;
-    }
+
+    oldSize = size + 8;
+    if(size < oldSize) oldSize = size;
+    memcpy(newptr, ptr, oldSize);
+    mm_free(ptr);
+
     return newptr;
 }
