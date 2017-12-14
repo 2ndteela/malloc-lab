@@ -102,6 +102,7 @@ void *mm_malloc(size_t size) {
     bestFit += bestFit->size / 8;
     bestFit->prev_size = prev->size;
   }
+    printf("%x allocated with size of %x\n", prev +1, size);
   return prev + 1;
 }
 
@@ -110,16 +111,53 @@ void *mm_malloc(size_t size) {
  */
 void mm_free(void *ptr)
 {
-   block_hdr* curr = ptr - 8;
-   if(curr->size % 2 == 1)
-      curr->size -= 1;
-   if((curr + (curr->size / 8))->size % 2 == 0) {
-      curr->size = curr->size + (curr + (curr->size / 8))->size;
-   }
-   if(curr->prev_size % 2 == 0) {
-      (curr - (curr->prev_size / 8))->size += curr->size;
-   }
-   (curr + (curr->size / 8))->prev_size = curr->size;
+  block_hdr* curr = ptr - 8;
+  block_hdr* next = ptr + curr->size - 1;
+  block_hdr* last = ptr - curr->prev_size - 1;
+  block_hdr* freed;
+
+  size_t nextAlloc = next->size & 0x1;
+  size_t lastAlloc = last->size & 0x1;
+  size_t size = curr->size;
+
+  PUT(curr, curr->size);
+
+  printf("trying to free = %x | next = %x | last = %x\n", curr, next, last);
+
+  //Both blocks next to the freed one are allocated
+  if(nextAlloc && lastAlloc) {
+    printf("both taken\n");
+    freed = curr;
+  }
+
+  else if (!nextAlloc && lastAlloc) {
+    printf("next open, last taken\n");
+    printf("\tsize = %x | nextSize = %x | total %x\n", size, next->size, size + (next->size));
+    size += next->size -1; 
+    printf("\tnew size = %x\n", size);
+    PUT(curr, size);
+    freed = curr;
+  } 
+
+  else if(nextAlloc && !lastAlloc) {
+      printf("last open, next taken\n");
+      printf("\tsize = %x | lastSize = %x | total %x\n", size, last->size, size + (last->size));
+      size += last->size -1; 
+      printf("\tnew size = %x\n", size);
+      PUT(last, size);
+      freed = last;
+  } 
+
+  //Both blocks next to the freed one are open
+  else {
+    printf("triple threat\n");
+    printf("\tcurrSize = %x | nextSize = %x | lastSize = %x | total space = %x\n", curr->size, next->size, last->size, curr->size + next->size + last ->size);
+    size += (next->size + last->size) - 2;
+    PUT(last, size);
+    freed = last;
+  }
+  printf("\t%x freed of %x blocks\n", freed, size);
+
 }
 
 /*
