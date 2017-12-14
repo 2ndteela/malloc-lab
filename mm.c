@@ -129,23 +129,23 @@ void *mm_realloc(void *ptr, size_t size)
 {
 
     size_t oldSize;
+    block_hdr* oldHeader = ptr - 8;
     void *newptr;
-
-    if(size == 0) {
-      mm_free(ptr);
-      return 0;
-    } 
 
     if(ptr == NULL) {
       return mm_malloc(size);
     }
 
+    if(size == 0) {
+      mm_free(ptr);
+      return NULL;
+    } 
+
+    mm_free(ptr);
     newptr = mm_malloc(size);
 
-    oldSize = size + 8;
-    if(size < oldSize) oldSize = size;
+    oldSize = oldHeader->size - 8;
     memcpy(newptr, ptr, oldSize);
-    mm_free(ptr);
 
     return newptr;
 }
