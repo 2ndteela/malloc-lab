@@ -401,4 +401,3 @@ void checkheap(int verbose)
     if ((GET_SIZE(HDRP(bp)) != 0) || !(GET_ALLOC(HDRP(bp))))
 	printf("Bad epilogue header\n");
 }
-s
