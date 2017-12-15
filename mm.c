@@ -52,6 +52,18 @@ typedef struct {
 /*
  * mm_init - initialize the malloc package.
  */
+
+void printList() {
+  block_hdr* curr = mem_heap_lo();
+  int blockNum = 0;
+  printf("***** PRINTING LIST *****\n");
+  while (curr->size > 1) {
+    printf("block #%x\n\theader: %x\n\tbody address: %x\n\tsize: %x\n\tprev_size: %x\n\n", blockNum, curr, curr+1, curr->size, curr->prev_size);
+    curr += curr->size / 8;
+    blockNum++;
+  }
+}
+
 int mm_init(void) {
   mem_sbrk((2 << 10) + (HEADER_SIZE * 2));
 
@@ -63,6 +75,8 @@ int mm_init(void) {
   end->size = 1;
   end->prev_size = first->size;
 
+  printf("%x allocated with %x blocks\n", first, first->size);
+
   return 0;
 }
 
@@ -70,6 +84,7 @@ int mm_init(void) {
  * Allocates first fit or expands heap and returns pointer
  */
 void *mm_malloc(size_t size) {
+  printf("MALLOC: %x\n", size);
   size = ALIGN(size);
   block_hdr* curr = mem_heap_lo();
   block_hdr* prev;
@@ -97,12 +112,19 @@ void *mm_malloc(size_t size) {
     curr->prev_size = prev->size;
   }
   else {
-    bestFit->size += 1;
-    prev = bestFit;
-    bestFit += bestFit->size / 8;
-    bestFit->prev_size = prev->size;
+
+	block_hdr* endBlock = bestFit + (size / 8);
+	int prevSize = bestFit->size;
+	endBlock->size = bestFit->size - size;
+	
+	endBlock->prev_size = prevSize;	
+
+    	bestFit->size = size + 1;
+    	prev = endBlock;
+    	bestFit += bestFit->size / 8;
+    	bestFit->prev_size = prev->size;
   }
-    printf("%x allocated with size of %x\n", prev +1, size);
+  printList();
   return prev + 1;
 }
 
@@ -111,41 +133,42 @@ void *mm_malloc(size_t size) {
  */
 void mm_free(void *ptr)
 {
+  printf("FREE\n");
   block_hdr* curr = ptr - 8;
   block_hdr* next = ptr + curr->size - 1;
-  block_hdr* last = ptr - curr->prev_size - 1;
-  block_hdr* freed;
+  block_hdr* last = ptr - curr->prev_size - 7;
 
   size_t nextAlloc = next->size & 0x1;
   size_t lastAlloc = last->size & 0x1;
+
   size_t size = curr->size;
 
   PUT(curr, curr->size);
 
   printf("trying to free = %x | next = %x | last = %x\n", curr, next, last);
+  printf("nextAlloc = %x | lastAlloc =%x\n", nextAlloc, lastAlloc);
 
   //Both blocks next to the freed one are allocated
   if(nextAlloc && lastAlloc) {
     printf("both taken\n");
-    freed = curr;
   }
 
   else if (!nextAlloc && lastAlloc) {
     printf("next open, last taken\n");
     printf("\tsize = %x | nextSize = %x | total %x\n", size, next->size, size + (next->size));
-    size += next->size -1; 
+    size += next->size; 
+    size--;
     printf("\tnew size = %x\n", size);
-    PUT(curr, size);
-    freed = curr;
+    curr->size = size;
   } 
 
   else if(nextAlloc && !lastAlloc) {
       printf("last open, next taken\n");
       printf("\tsize = %x | lastSize = %x | total %x\n", size, last->size, size + (last->size));
-      size += last->size -1; 
+      size += last->size;
+      size--; 
       printf("\tnew size = %x\n", size);
-      PUT(last, size);
-      freed = last;
+      last->size = size;
   } 
 
   //Both blocks next to the freed one are open
@@ -154,9 +177,9 @@ void mm_free(void *ptr)
     printf("\tcurrSize = %x | nextSize = %x | lastSize = %x | total space = %x\n", curr->size, next->size, last->size, curr->size + next->size + last ->size);
     size += (next->size + last->size) - 2;
     PUT(last, size);
-    freed = last;
   }
-  printf("\t%x freed of %x blocks\n", freed, size);
+ printList();
+return;
 
 }
 
@@ -165,7 +188,7 @@ void mm_free(void *ptr)
  */
 void *mm_realloc(void *ptr, size_t size)
 {
-
+    printf("REALLOC\n");
     size_t oldSize;
     block_hdr* oldHeader = ptr - 8;
     void *newptr;
@@ -187,3 +210,4 @@ void *mm_realloc(void *ptr, size_t size)
 
     return newptr;
 }
+
